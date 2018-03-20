@@ -19,7 +19,7 @@ def main():
     subreddit = reddit.subreddit(sub_reddit_name)
 
     # Iterate over reddit submissions and process spotify information
-    for submission in subreddit.submissions():
+    for submission in subreddit.stream.submissions():
         processSubmission(submission, spotify)
 
 def processSubmission(submission, spotify):
@@ -28,13 +28,14 @@ def processSubmission(submission, spotify):
     # Submission artist, the first item of the list above
     submission_artist = submission_title[0].strip()
     # Empty string
-    song = ""
+    songName = ""
     # None (NULL) value
-    artist = None
+    artistJson = None
 
     # If the list has a length of more than 1, then we probably have artist/song submission info
     if len(submission_title) > 1:
-        song = submission_title[1].strip()
+        songList = submission_title[1].split("[")
+        songName = songList[0]
 
     # Search Request from Spotify on the artist
     searchRequest = spotify.search(submission_artist,1,0,"artist")
@@ -44,15 +45,29 @@ def processSubmission(submission, spotify):
     if searchRequest is not None:
         try:
             # Artist info
-            artist = searchRequest['artists']['items'][0]
+            artistJson = searchRequest['artists']['items'][0]
+            artistName = artistJson['name']
+            artistUrl = artistJson['external_urls']['spotify']
+
+            # Query for search for
+            songQuery = artistName + songName
+
+            # Another request for the song
+            songRequest = spotify.search(songQuery,1,0,"track")
+
+            if songRequest is not None:
+                # Let the try/catch handle the exception if no response
+                song = songRequest['tracks']['items'][0]
+                #print(json.dumps(songRequest, indent=4))
+
+                songUrl = song['external_urls']['spotify']
+                print("Replying to " + submission.title)
+                submission.reply("Found it on Spotify! I think... i'm just a dumb bot " + songUrl)
+
         except:
             # swallow
             pass
             #print("Could not find artist!")
-
-    if artist:
-        popularity = artist['popularity']
-        print(artist['name'] + " : " + str(popularity))
 
 # Gets the Spotify user instance
 def spotify_login(spotify_username):
